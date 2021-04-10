@@ -28,6 +28,24 @@ jobs:
             });
 
             return { behind_by: ret.data.behind_by, sha: ret.data.base_commit.sha };
+            
+  sync:
+    needs: [compare, analyze]
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        token: ${{ secrets.SYNC_TOKEN }}
+        fetch-depth: 20
+        
+    - run: |
+        git remote add upstream git://github.com/Orckestra/C1-CMS-Foundation.git
+        git config --global user.email "octokit@github.com"
+        git config --global user.name "Octokit"
+        git fetch upstream || exit 1
+        git merge ${{ fromJSON(needs.compare.outputs.result).sha }} || exit 1
+        git push --force || exit 1
 
   analyze:
     needs: compare
@@ -44,7 +62,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
       with:
-        fetch-depth: 20
+        persist-credentials: false
 
     - uses: github/codeql-action/init@v1
       with:
@@ -105,11 +123,3 @@ jobs:
 
           const blockBlobClient = new BlockBlobClient(secret.${{ matrix.language }});
           await blockBlobClient.uploadFile(src);
-
-    - run: |
-        git remote add upstream git://github.com/Orckestra/C1-CMS-Foundation.git
-        git config --global user.email "octokit@github.com"
-        git config --global user.name "Octokit"
-        git fetch upstream || exit 1
-        git merge ${{ fromJSON(needs.compare.outputs.result).sha }} || exit 1
-        git push || exit 1
